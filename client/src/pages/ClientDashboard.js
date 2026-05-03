@@ -7,11 +7,14 @@ const ClientDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('vehicles');
   const [filter, setFilter] = useState({ type: '', purpose: '' });
 
   useEffect(() => {
     fetchVehicles();
+    fetchMyBookings();
   }, []);
 
   const fetchVehicles = async () => {
@@ -22,6 +25,15 @@ const ClientDashboard = () => {
       console.log(err);
     }
     setLoading(false);
+  };
+
+  const fetchMyBookings = async () => {
+    try {
+      const res = await API.get('/bookings/my-bookings');
+      setBookings(res.data.data);
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   const handleFilter = async () => {
@@ -43,6 +55,16 @@ const ClientDashboard = () => {
     navigate('/login');
   };
 
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'confirmed': return { bg: '#dcfce7', color: 'green' };
+      case 'pending': return { bg: '#fef9c3', color: '#b45309' };
+      case 'cancelled': return { bg: '#fee2e2', color: 'red' };
+      case 'completed': return { bg: '#e0f2fe', color: 'blue' };
+      default: return { bg: '#f3f4f6', color: '#666' };
+    }
+  };
+
   return (
     <div style={styles.container}>
       {/* Navbar */}
@@ -54,94 +76,175 @@ const ClientDashboard = () => {
         </div>
       </div>
 
-      {/* Filter Section */}
-      <div style={styles.filterSection}>
-        <h3 style={styles.filterTitle}>Vehicle Dhundo 🔍</h3>
-        <div style={styles.filterRow}>
-          <select
-            style={styles.select}
-            value={filter.type}
-            onChange={(e) => setFilter({ ...filter, type: e.target.value })}
-          >
-            <option value="">Sabhi Vehicles</option>
-            <option value="car">Car 🚗</option>
-            <option value="bike">Bike 🏍️</option>
-            <option value="auto">Auto 🛺</option>
-            <option value="taxi">Taxi 🚕</option>
-            <option value="truck">Truck 🚛</option>
-            <option value="tractor">Tractor 🚜</option>
-            <option value="jcb">JCB 🏗️</option>
-            <option value="crane">Crane 🏗️</option>
-            <option value="tempo">Tempo 🚐</option>
-          </select>
-          <select
-            style={styles.select}
-            value={filter.purpose}
-            onChange={(e) => setFilter({ ...filter, purpose: e.target.value })}
-          >
-            <option value="">Sabhi Purpose</option>
-            <option value="travelling">Travelling ✈️</option>
-            <option value="luggage">Luggage 📦</option>
-            <option value="towing">Towing 🔗</option>
-            <option value="farming">Farming 🌾</option>
-            <option value="construction">Construction 🏗️</option>
-            <option value="other">Other</option>
-          </select>
-          <button style={styles.filterBtn} onClick={handleFilter}>
-            Filter Karo
-          </button>
-          <button style={styles.resetBtn} onClick={() => {
-            setFilter({ type: '', purpose: '' });
-            fetchVehicles();
-          }}>
-            Reset
-          </button>
-        </div>
+      {/* Tabs */}
+      <div style={styles.tabs}>
+        <button
+          style={activeTab === 'vehicles' ? styles.activeTab : styles.tab}
+          onClick={() => setActiveTab('vehicles')}
+        >🚗 Vehicles ({vehicles.length})</button>
+        <button
+          style={activeTab === 'bookings' ? styles.activeTab : styles.tab}
+          onClick={() => setActiveTab('bookings')}
+        >📋 Meri Bookings ({bookings.length})</button>
       </div>
 
-      {/* Vehicles List */}
-      <div style={styles.content}>
-        {loading ? (
-          <p style={styles.loading}>Loading vehicles... ⏳</p>
-        ) : vehicles.length === 0 ? (
-          <p style={styles.noData}>Koi vehicle nahi mila 😕</p>
-        ) : (
-          <div style={styles.grid}>
-            {vehicles.map((vehicle) => (
-              <div key={vehicle._id} style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <span style={styles.vehicleType}>
-                    {vehicle.type === 'car' ? '🚗' :
-                     vehicle.type === 'bike' ? '🏍️' :
-                     vehicle.type === 'truck' ? '🚛' :
-                     vehicle.type === 'tractor' ? '🚜' :
-                     vehicle.type === 'taxi' ? '🚕' :
-                     vehicle.type === 'auto' ? '🛺' :
-                     vehicle.type === 'jcb' ? '🏗️' :
-                     vehicle.type === 'crane' ? '🏗️' : '🚐'}
-                  </span>
-                  <span style={styles.vehicleTypeBadge}>{vehicle.type.toUpperCase()}</span>
-                </div>
-                <h3 style={styles.vehicleName}>{vehicle.name}</h3>
-                <p style={styles.vehicleInfo}>📍 {vehicle.location}</p>
-                <p style={styles.vehicleInfo}>🎯 {vehicle.purpose}</p>
-                <p style={styles.vehicleInfo}>👤 {vehicle.owner?.name}</p>
-                <p style={styles.vehicleInfo}>📞 {vehicle.owner?.phone}</p>
-                <div style={styles.priceRow}>
-                  <span style={styles.price}>₹{vehicle.pricePerDay}/day</span>
-                  <span style={styles.advance}>30% advance: ₹{Math.ceil(vehicle.pricePerDay * 0.30)}</span>
-                </div>
-                <button
-                  style={styles.bookBtn}
-                  onClick={() => navigate(`/client/book/${vehicle._id}`)}
-                >
-                  Book Karo 🚀
-                </button>
-              </div>
-            ))}
+      {/* Vehicles Tab */}
+      {activeTab === 'vehicles' && (
+        <div>
+          <div style={styles.filterSection}>
+            <h3 style={styles.filterTitle}>Vehicle Dhundo 🔍</h3>
+            <div style={styles.filterRow}>
+              <select style={styles.select} value={filter.type}
+                onChange={(e) => setFilter({ ...filter, type: e.target.value })}>
+                <option value="">Sabhi Vehicles</option>
+                <option value="car">Car 🚗</option>
+                <option value="bike">Bike 🏍️</option>
+                <option value="auto">Auto 🛺</option>
+                <option value="taxi">Taxi 🚕</option>
+                <option value="truck">Truck 🚛</option>
+                <option value="tractor">Tractor 🚜</option>
+                <option value="jcb">JCB 🏗️</option>
+                <option value="crane">Crane 🏗️</option>
+                <option value="tempo">Tempo 🚐</option>
+              </select>
+              <select style={styles.select} value={filter.purpose}
+                onChange={(e) => setFilter({ ...filter, purpose: e.target.value })}>
+                <option value="">Sabhi Purpose</option>
+                <option value="travelling">Travelling ✈️</option>
+                <option value="luggage">Luggage 📦</option>
+                <option value="towing">Towing 🔗</option>
+                <option value="farming">Farming 🌾</option>
+                <option value="construction">Construction 🏗️</option>
+                <option value="other">Other</option>
+              </select>
+              <button style={styles.filterBtn} onClick={handleFilter}>Filter Karo</button>
+              <button style={styles.resetBtn} onClick={() => {
+                setFilter({ type: '', purpose: '' });
+                fetchVehicles();
+              }}>Reset</button>
+            </div>
           </div>
-        )}
-      </div>
+
+          <div style={styles.content}>
+            {loading ? (
+              <p style={styles.centerText}>Loading vehicles... ⏳</p>
+            ) : vehicles.length === 0 ? (
+              <p style={styles.centerText}>Koi vehicle nahi mila 😕</p>
+            ) : (
+              <div style={styles.grid}>
+                {vehicles.map((vehicle) => (
+                  <div key={vehicle._id} style={styles.card}>
+                    <div style={styles.cardHeader}>
+                      <span style={styles.vehicleEmoji}>
+                        {vehicle.type === 'car' ? '🚗' :
+                         vehicle.type === 'bike' ? '🏍️' :
+                         vehicle.type === 'truck' ? '🚛' :
+                         vehicle.type === 'tractor' ? '🚜' :
+                         vehicle.type === 'taxi' ? '🚕' :
+                         vehicle.type === 'auto' ? '🛺' :
+                         vehicle.type === 'jcb' ? '🏗️' :
+                         vehicle.type === 'crane' ? '🏗️' : '🚐'}
+                      </span>
+                      <span style={styles.typeBadge}>{vehicle.type.toUpperCase()}</span>
+                    </div>
+                    <h3 style={styles.vehicleName}>{vehicle.name}</h3>
+                    <p style={styles.vehicleInfo}>📍 {vehicle.location}</p>
+                    <p style={styles.vehicleInfo}>🎯 {vehicle.purpose}</p>
+                    <p style={styles.vehicleInfo}>👤 {vehicle.owner?.name}</p>
+                    <p style={styles.vehicleInfo}>📞 {vehicle.owner?.phone}</p>
+                    <div style={styles.priceRow}>
+                      <span style={styles.price}>₹{vehicle.pricePerDay}/day</span>
+                      <span style={styles.advance}>30% advance: ₹{Math.ceil(vehicle.pricePerDay * 0.30)}</span>
+                    </div>
+                    <button style={styles.bookBtn}
+                      onClick={() => navigate(`/client/book/${vehicle._id}`)}>
+                      Book Karo 🚀
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bookings Tab */}
+      {activeTab === 'bookings' && (
+        <div style={styles.content}>
+          {bookings.length === 0 ? (
+            <div style={styles.emptyBox}>
+              <p style={{ fontSize: '48px', margin: '0 0 12px' }}>📋</p>
+              <p style={{ fontSize: '18px', color: '#666', margin: 0 }}>Abhi tak koi booking nahi ki</p>
+              <button style={{ ...styles.bookBtn, marginTop: '16px', width: 'auto', padding: '10px 24px' }}
+                onClick={() => setActiveTab('vehicles')}>
+                Vehicle Dhundo 🚗
+              </button>
+            </div>
+          ) : (
+            <div>
+              {bookings.map((b) => {
+                const statusStyle = getStatusColor(b.status);
+                return (
+                  <div key={b._id} style={styles.bookingCard}>
+                    <div style={styles.bookingHeader}>
+                      <div>
+                        <h3 style={styles.bookingTitle}>{b.vehicle?.name}</h3>
+                        <p style={styles.bookingSubtitle}>
+                          {b.vehicle?.type?.toUpperCase()} • {b.vehicle?.location}
+                        </p>
+                      </div>
+                      <span style={{
+                        ...styles.statusBadge,
+                        backgroundColor: statusStyle.bg,
+                        color: statusStyle.color
+                      }}>{b.status.toUpperCase()}</span>
+                    </div>
+
+                    <div style={styles.bookingGrid}>
+                      <div style={styles.bookingInfo}>
+                        <p style={styles.infoLabel}>📅 Dates</p>
+                        <p style={styles.infoValue}>
+                          {new Date(b.startDate).toLocaleDateString('hi-IN')} →{' '}
+                          {new Date(b.endDate).toLocaleDateString('hi-IN')}
+                        </p>
+                      </div>
+                      <div style={styles.bookingInfo}>
+                        <p style={styles.infoLabel}>📍 Pickup</p>
+                        <p style={styles.infoValue}>{b.pickupLocation}</p>
+                      </div>
+                      <div style={styles.bookingInfo}>
+                        <p style={styles.infoLabel}>💰 Total Amount</p>
+                        <p style={{ ...styles.infoValue, color: '#f97316', fontWeight: '700' }}>
+                          ₹{b.totalAmount}
+                        </p>
+                      </div>
+                      <div style={styles.bookingInfo}>
+                        <p style={styles.infoLabel}>💳 Payment</p>
+                        <p style={styles.infoValue}>{b.paymentStatus.replace('_', ' ').toUpperCase()}</p>
+                      </div>
+                    </div>
+
+                    {b.dropLocation && (
+                      <p style={{ ...styles.infoLabel, marginTop: '8px' }}>
+                        📍 Drop: <span style={styles.infoValue}>{b.dropLocation}</span>
+                      </p>
+                    )}
+
+                    <div style={styles.amountRow}>
+                      <span style={styles.amountItem}>
+                        Advance paid: <strong>₹{b.advanceAmount}</strong>
+                      </span>
+                      <span style={styles.amountItem}>
+                        Remaining: <strong>₹{b.remainingAmount}</strong>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -160,6 +263,16 @@ const styles = {
     padding: '8px 16px', backgroundColor: 'white',
     color: '#f97316', border: 'none', borderRadius: '8px',
     cursor: 'pointer', fontWeight: '600'
+  },
+  tabs: { backgroundColor: 'white', display: 'flex', borderBottom: '2px solid #f0f2f5' },
+  tab: {
+    padding: '16px 24px', border: 'none', backgroundColor: 'transparent',
+    cursor: 'pointer', fontSize: '15px', color: '#666'
+  },
+  activeTab: {
+    padding: '16px 24px', border: 'none', backgroundColor: 'transparent',
+    cursor: 'pointer', fontSize: '15px', color: '#f97316',
+    fontWeight: '700', borderBottom: '3px solid #f97316'
   },
   filterSection: {
     backgroundColor: 'white', padding: '20px 24px',
@@ -182,8 +295,7 @@ const styles = {
     cursor: 'pointer', fontWeight: '600'
   },
   content: { padding: '24px' },
-  loading: { textAlign: 'center', fontSize: '18px', color: '#666' },
-  noData: { textAlign: 'center', fontSize: '18px', color: '#666' },
+  centerText: { textAlign: 'center', fontSize: '18px', color: '#666' },
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
@@ -194,17 +306,16 @@ const styles = {
     padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   cardHeader: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' },
-  vehicleType: { fontSize: '32px' },
-  vehicleTypeBadge: {
+  vehicleEmoji: { fontSize: '32px' },
+  typeBadge: {
     backgroundColor: '#fff7ed', color: '#f97316',
     padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700'
   },
   vehicleName: { margin: '0 0 8px 0', color: '#333', fontSize: '18px' },
   vehicleInfo: { margin: '4px 0', color: '#666', fontSize: '14px' },
   priceRow: {
-    display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center', margin: '12px 0',
-    padding: '8px', backgroundColor: '#f9fafb', borderRadius: '8px'
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    margin: '12px 0', padding: '8px', backgroundColor: '#f9fafb', borderRadius: '8px'
   },
   price: { fontWeight: '700', color: '#f97316', fontSize: '16px' },
   advance: { fontSize: '12px', color: '#666' },
@@ -213,6 +324,42 @@ const styles = {
     color: 'white', border: 'none', borderRadius: '8px',
     fontSize: '15px', fontWeight: '600', cursor: 'pointer'
   },
+  emptyBox: {
+    textAlign: 'center', padding: '60px 20px',
+    backgroundColor: 'white', borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  bookingCard: {
+    backgroundColor: 'white', borderRadius: '12px',
+    padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    marginBottom: '16px'
+  },
+  bookingHeader: {
+    display: 'flex', justifyContent: 'space-between',
+    alignItems: 'flex-start', marginBottom: '16px'
+  },
+  bookingTitle: { margin: '0 0 4px 0', color: '#333', fontSize: '18px' },
+  bookingSubtitle: { margin: 0, color: '#666', fontSize: '13px' },
+  statusBadge: {
+    padding: '4px 12px', borderRadius: '20px',
+    fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap'
+  },
+  bookingGrid: {
+    display: 'grid', gridTemplateColumns: '1fr 1fr',
+    gap: '12px', marginBottom: '12px'
+  },
+  bookingInfo: {
+    backgroundColor: '#f9fafb', padding: '10px',
+    borderRadius: '8px'
+  },
+  infoLabel: { margin: '0 0 4px 0', fontSize: '12px', color: '#666' },
+  infoValue: { margin: 0, fontSize: '14px', color: '#333', fontWeight: '500' },
+  amountRow: {
+    display: 'flex', gap: '16px', flexWrap: 'wrap',
+    borderTop: '1px solid #f0f2f5', paddingTop: '12px',
+    marginTop: '12px', fontSize: '14px', color: '#555'
+  },
+  amountItem: { fontSize: '14px', color: '#555' },
 };
 
 export default ClientDashboard;
