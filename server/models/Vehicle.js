@@ -42,7 +42,7 @@ const vehicleSchema = new mongoose.Schema({
   },
   isApproved: {
     type: Boolean,
-    default: false
+    default: true
   },
   registrationNumber: {
     type: String,
